@@ -81,8 +81,8 @@ def decrypt_file_vigenere(input_file, output_file, key):
         file.write(decrypted_text)
 
 
-encrypt_file_caesar("input.txt", "Lab1/caesar_encrypted.txt", 3)
-decrypt_file_caesar("caesar_encrypted.txt", "Lab1/caesar_decrypted.txt", 3)
+encrypt_file_caesar("input.txt", "caesar_encrypted.txt", 3)
+decrypt_file_caesar("caesar_encrypted.txt", "caesar_decrypted.txt", 3)
 
 encrypt_file_vigenere("input.txt", "vigenere_encrypted.txt", "key")
 decrypt_file_vigenere("vigenere_encrypted.txt", "vigenere_decrypted.txt", "key")
