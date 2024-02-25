@@ -124,7 +124,7 @@ def bit_array_to_string(array):  # Recreate the string from the bit array
 def binvalue(val, bitsize):  # Return the binary value as a string of the given size
     binval = bin(val)[2:] if isinstance(val, int) else bin(ord(val))[2:]
     if len(binval) > bitsize:
-        raise "binary value larger than the expected size"
+        raise "Binary value larger than the expected size"
     while len(binval) < bitsize:
         binval = "0" + binval  # Add as many 0 as needed to get the wanted size
     return binval
@@ -138,7 +138,7 @@ ENCRYPT = 1
 DECRYPT = 0
 
 
-class Des():
+class Des:
     def __init__(self):
         self.password = None
         self.text = None
@@ -235,7 +235,7 @@ class Des():
 
 if __name__ == '__main__':
     key = "secret_k"
-    text = "Hello wo"
+    text = "IlyaLook"
     d = Des()
     r = d.encrypt(key, text)
     r2 = d.decrypt(key, r)

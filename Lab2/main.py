@@ -4,27 +4,22 @@ import time
 from des import Des
 from ast import literal_eval as make_tuple
 
-
 current_milli_time = lambda: int(round(time.time() * 1000))
 hours_to_milli = lambda hour: hour * 3600 * 10000
 
 
-class DesEncrpter:
+class DesEncrypter:
     def encrypt(self, data, key):
-        # print()
-        # print('до шифрования:', data)
+        # print('Before encrypt:', data)
         encrypted = Des().encrypt(key=str(key), text=str(data), padding=True)
-        # print('после шифрования:', encrypted)
-        # print()
+        # print('After encrypt:', encrypted)
         return encrypted
 
     def decrypt(self, data, key):
-        # print()
-        # print('до шифрования:', data)
+        # print('Before decrypt:', data)
         decrypted = Des().decrypt(key=str(key), text=str(data), padding=True)
         decrypted = make_tuple(decrypted)
-        # print('после шифрования:', decrypted)
-        # print()
+        # print('After decrypt:', decrypted)
         return decrypted
 
 
@@ -41,18 +36,18 @@ class KDC:
     servers_keys = [KeyCreator.create_key(), KeyCreator.create_key()]
 
     def __init__(self):
-        self.des = DesEncrpter()
+        self.des = DesEncrypter()
         self.tgs_id = 1
         self.key_tgs = KeyCreator.create_key()
 
     def get_permission_ticket(self, client_id):
-        print('Новый вызов тикета')
+        print('New call ticket:')
         if client_id in self.available_clients:
             t = current_milli_time()
             p = hours_to_milli(48)
             key_tgs_c = KeyCreator.create_key()
             ticket = self.build_permission_ticket(client_id, self.tgs_id, t, p, key_tgs_c)
-            print('Новый вызов тикета:', ticket)
+            print('New call ticket:', ticket)
 
             encrypted_ticket = self.des.encrypt(ticket, self.key_tgs)
             bundle = (encrypted_ticket, key_tgs_c)
@@ -63,10 +58,10 @@ class KDC:
 
             return encrypted_bundle
 
-        print('Неизвестный id клиента')
+        print('Unknown id client')
 
     def get_server_ticket(self, permission_ticket, authority, server_id):
-        print('Новый вызов тикета')
+        print('New call ticket')
         permission_ticket = self.des.decrypt(permission_ticket, self.key_tgs)
         client_id = permission_ticket[0]
         t = permission_ticket[2]
@@ -74,27 +69,32 @@ class KDC:
         key_tgs_c = permission_ticket[4]
 
         print(
-            'Данные билета разрешения. id: {}, timestamp: {}, period: {}, key TGS-Client: {}'.format(client_id, t,
-                                                                                                          p, key_tgs_c))
+            'Data ----- '
+            'id: {},'
+            'timestamp: {},'
+            'period: {}, '
+            'key TGS-Client: {}'.format(client_id, t, p, key_tgs_c))
 
         authority = self.des.decrypt(authority, key_tgs_c)
         auth_client_id = authority[0]
         auth_t = authority[1]
 
-        print('Данные авторизации client id: {}, timestamp: {}'.format(auth_client_id, auth_t))
+        print('Data for avtomatization ---- '
+              'client id: {}, '
+              'timestamp: {}'.format(auth_client_id, auth_t))
 
         if client_id != auth_client_id:
-            print('Недействительный клиент')
+            print('Invalid client')
             return None
         if auth_t < t or auth_t > t + p:
-            print('Срок действия истек')
+            print('Expired')
             return None
 
         t = current_milli_time()
         p = hours_to_milli(48)
         key_ss_c = KeyCreator.create_key()
         server_ticket = self.build_server_ticket(client_id, server_id, t, p, key_ss_c)
-        print('Новый тикет сервера:', server_ticket)
+        print('New server ticket:', server_ticket)
 
         index = self.available_servers.index(server_id)
         server_key = self.servers_keys[index]
@@ -118,18 +118,18 @@ class Client:
         self.client_key = client_key
         self.kdc = kdc
         self.servers = servers
-        self.des = DesEncrpter()
+        self.des = DesEncrypter()
         self.permission_ticket = None
         self.key_tgs_c = None
 
     def make_server_call(self, server_number):
         print()
         print()
-        print('Вызов сервера', server_number)
+        print('Call server', server_number)
         server = self.servers[server_number]
 
         if self.permission_ticket is None or self.key_tgs_c is None:
-            print('Попытка взять билет разрешения')
+            print('Attempting to take a permission ticket')
             permission_ticket_bundle = self.kdc.get_permission_ticket(self.client_id)
             if permission_ticket_bundle is None:
                 return
@@ -138,17 +138,17 @@ class Client:
 
             permission_ticket = permission_ticket_bundle[0]
             key_tgs_c = permission_ticket_bundle[1]
-            print('ключ TGS-Client:', key_tgs_c)
+            print('Key TGS-Client:', key_tgs_c)
 
             self.permission_ticket = permission_ticket
             self.key_tgs_c = key_tgs_c
         else:
-            print('Тикет разрешения и ключ TGS-Client уже определены')
+            print('The permission ticket and TGS-Client key are already defined')
             permission_ticket = self.permission_ticket
             key_tgs_c = self.key_tgs_c
 
         print()
-        print('Попытка получить билет на сервер')
+        print('Trying to get a ticket to the server')
         bundle = self.__call_tgs(permission_ticket, key_tgs_c, server.server_id)
         if bundle is None:
             return
@@ -156,10 +156,10 @@ class Client:
 
         server_ticket = bundle[0]
         key_ss_c = bundle[1]
-        print('Ключ Server-Client:', key_ss_c)
+        print('Key Server-Client:', key_ss_c)
 
         print()
-        print('Попытка подключения к серверу')
+        print('Attempting to connect to the server')
         t = current_milli_time()
         authority = (self.client_id, t)
         authority_enctypted = self.des.encrypt(authority, key_ss_c)
@@ -168,15 +168,17 @@ class Client:
             return
         confirm_t = self.des.decrypt(confirm_t, key_ss_c)
         if confirm_t != t + 1:
-            print('Сервер возвращает неправильную метку времени')
+            print('Server returns incorrect timestamp')
             return
 
         print()
-        print('Вызов сервера успешен')
+        print('Server call successful')
 
     def __call_tgs(self, permission_ticket, key_tgs_c, server_id):
         t = current_milli_time()
-        print('Вызов TGS. Server id: {}, timestamp: {}'.format(server_id, t))
+        print('Call TGS. '
+              'Server id: {}, '
+              'timestamp: {}'.format(server_id, t))
         authority = (self.client_id, t)
         authority_enctypted = self.des.encrypt(authority, key_tgs_c)
         bundle = self.kdc.get_server_ticket(permission_ticket, authority_enctypted, server_id)
@@ -187,10 +189,10 @@ class Server:
     def __init__(self, server_id, server_key):
         self.server_id = server_id
         self.server_key = server_key
-        self.des = DesEncrpter()
+        self.des = DesEncrypter()
 
     def connect(self, server_ticket, authority):
-        print('Новое подключение сервера')
+        print('New server connection')
         server_ticket = self.des.decrypt(server_ticket, self.server_key)
         client_id = server_ticket[0]
         server_id = server_ticket[1]
@@ -198,18 +200,23 @@ class Server:
         p = server_ticket[3]
         key_ss_c = server_ticket[4]
 
-        print('Данные тикета сервера. Client id: {}, timestamp: {}, period: {}, key Server-Client: {}'.format(client_id, t,
-                                                                                                           p, key_ss_c))
+        print('Data ticket server ---- '
+              'Client id: {}, '
+              'timestamp: {}, '
+              'period: {},'
+              'key Server-Client: {}'.format(client_id, t, p, key_ss_c))
 
         if server_id != self.server_id:
-            print('Неверный сервер')
+            print('Unknown server')
             return None
 
         authority = self.des.decrypt(authority, key_ss_c)
         auth_client_id = authority[0]
         auth_t = authority[1]
 
-        print('Данные авторизациисд. Client id: {}, timestamp: {}'.format(auth_client_id, auth_t))
+        print('Authorization data ---- '
+              'Client id: {}, '
+              'timestamp: {}'.format(auth_client_id, auth_t))
 
         if client_id != auth_client_id:
             print('Invalid client')
@@ -224,10 +231,11 @@ class Server:
         return encrypted_confirm_t
 
 
-def init():
+def initialization_client():
     kdc = KDC()
     server1 = Server(kdc.available_servers[0], kdc.servers_keys[0])
     server2 = Server(kdc.available_servers[1], kdc.servers_keys[1])
+
     client = Client(kdc.available_clients[0], kdc.clients_keys[0], kdc, [server1, server2])
 
     print('server0 id: {}, server0 key: {}'.format(server1.server_id, server1.server_key))
@@ -237,6 +245,6 @@ def init():
     return client
 
 
-client = init()
+client = initialization_client()
 client.make_server_call(0)
 # client.make_server_call(1)
