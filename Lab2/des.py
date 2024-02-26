@@ -108,29 +108,29 @@ PI_1 = [40, 8, 48, 16, 56, 24, 64, 32,
 SHIFT = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
 
 
-def string_to_bit_array(text):  # Convert a string into a list of bits
+def string_to_bit_array(text):  # Преобразовать строку в список битов
     array = list()
     for char in text:
-        binval = binvalue(char, 8)  # Get the char value on one byte
-        array.extend([int(x) for x in list(binval)])  # Add the bits to the final list
+        binval = binvalue(char, 8)  # Получить значение символа на один байт
+        array.extend([int(x) for x in list(binval)])  # Добавить биты в конечный список
     return array
 
 
-def bit_array_to_string(array):  # Recreate the string from the bit array
+def bit_array_to_string(array):  # Воссоздать строку из списка битов
     res = ''.join([chr(int(y, 2)) for y in [''.join([str(x) for x in _bytes]) for _bytes in nsplit(array, 8)]])
     return res
 
 
-def binvalue(val, bitsize):  # Return the binary value as a string of the given size
+def binvalue(val, bitsize):  # Вернуть двоичное значение в виде строки заданного размера
     binval = bin(val)[2:] if isinstance(val, int) else bin(ord(val))[2:]
     if len(binval) > bitsize:
         raise "Binary value larger than the expected size"
     while len(binval) < bitsize:
-        binval = "0" + binval  # Add as many 0 as needed to get the wanted size
+        binval = "0" + binval  # Добавить столько нулей, сколько нужно, чтобы получить нужный размер
     return binval
 
 
-def nsplit(s, n):  # Split a list into sublists of size "n"
+def nsplit(s, n):  # Разбить список на подсписки размера "n"
     return [s[k:k + n] for k in range(0, len(s), n)]
 
 
@@ -148,81 +148,97 @@ class Des:
         if len(key) < 8:
             raise "Key Should be 8 bytes long"
         elif len(key) > 8:
-            key = key[:8]  # If key size is above 8bytes, cut to be 8bytes long
+            key = key[:8]  # Если размер ключа больше 8 байт, обрезать до 8 байт
 
         self.password = key
         self.text = text
 
         if padding and action == ENCRYPT:
             self.addPadding()
-        elif len(self.text) % 8 != 0:  # If not padding specified data size must be multiple of 8 bytes
+        elif len(self.text) % 8 != 0:  # Если не задано дополнение, размер данных должен быть кратен 8 байтам
             raise "Data size should be multiple of 8"
 
-        self.generatekeys()  # Generate all the keys
-        text_blocks = nsplit(self.text, 8)  # Split the text in blocks of 8 bytes so 64 bits
+        # Шаг 1: Инициализация ключа и текста
+        print("Инициализация ключа и текста:")
+        print(f"Ключ: {key}")
+        print(f"Текст: {text}")
+
+        self.generatekeys()  # Сгенерировать все ключи
+
+        # Шаг 2: Генерация ключей
+        print("Генерация ключей:")
+        self.generatekeys()
+
+        text_blocks = nsplit(self.text, 8)  # Разбить текст на блоки по 8 байт, т.е. 64 бита
         result = list()
-        for block in text_blocks:  # Loop over all the blocks of data
-            block = string_to_bit_array(block)  # Convert the block in bit array
-            block = self.permut(block, PI)  # Apply the initial permutation
+        for block in text_blocks:  # Пройти по всем блокам данных
+            block = string_to_bit_array(block)  # Преобразовать блок в список битов
+            block = self.permut(block, PI)  # Применить начальную перестановку
             g, d = nsplit(block, 32)  # g(LEFT), d(RIGHT)
             tmp = None
-            for i in range(16):  # Do the 16 rounds
-                d_e = self.expand(d, E)  # Expand d to match Ki size (48bits)
+            for i in range(16):  # Выполнить 16 раундов
+                d_e = self.expand(d, E)  # Расширить d до размера Ki (48 бит)
                 if action == ENCRYPT:
-                    tmp = self.xor(self.keys[i], d_e)  # If encrypt use Ki
+                    tmp = self.xor(self.keys[i], d_e)  # Если шифруем, использовать Ki
                 else:
-                    tmp = self.xor(self.keys[15 - i], d_e)  # If decrypt start by the last key
-                tmp = self.substitute(tmp)  # Method that will apply the SBOXes
+                    tmp = self.xor(self.keys[15 - i], d_e)  # Если дешифруем, начать с последнего ключа
+                tmp = self.substitute(tmp)  # Применить S-блоки
                 tmp = self.permut(tmp, P)
                 tmp = self.xor(g, tmp)
                 g = d
                 d = tmp
-            result += self.permut(d + g, PI_1)  # Do the last permut and append the result to result
+            result += self.permut(d + g, PI_1)  # Провести последнюю перестановку и добавить результат
+
         final_res = bit_array_to_string(result)
         if padding and action == DECRYPT:
-            return self.removePadding(final_res)  # Remove the padding if decrypt and padding is true
-        else:
-            return final_res  # Return the final string of data ciphered/deciphered
+            final_res = self.removePadding(final_res)  # Убрать дополнение при дешифровании
 
-    def substitute(self, d_e):  # Substitute bytes using SBOX
-        subblocks = nsplit(d_e, 6)  # Split bit array into sublist of 6 bits
+        # Шаг 3: Шифрование или дешифрование
+        action_name = "Шифрование" if action == ENCRYPT else "Дешифрование"
+        print(f"{action_name}:")
+        print(f"Результат: {final_res}")
+
+        return final_res
+
+    def substitute(self, d_e):  # Заменить байты с помощью S-блоков
+        subblocks = nsplit(d_e, 6)  # Разделить список битов на подсписки по 6 бит
         result = list()
-        for i in range(len(subblocks)):  # For all the sublists
+        for i in range(len(subblocks)):  # Для всех подсписков
             block = subblocks[i]
-            row = int(str(block[0]) + str(block[5]), 2)  # Get the row with the first and last bit
-            column = int(''.join([str(x) for x in block[1:][:-1]]), 2)  # Column is the 2,3,4,5th bits
-            val = S_BOX[i][row][column]  # Take the value in the SBOX appropriated for the round (i)
-            bin = binvalue(val, 4)  # Convert the value to binary
-            result += [int(x) for x in bin]  # And append it to the resulting list
+            row = int(str(block[0]) + str(block[5]), 2)  # Получить строку из первого и последнего бита
+            column = int(''.join([str(x) for x in block[1:][:-1]]), 2)  # Столбец - это 2,3,4,5 биты
+            val = S_BOX[i][row][column]  # Взять значение из соответствующего S-блока для раунда (i)
+            bin = binvalue(val, 4)  # Преобразовать значение в двоичное
+            result += [int(x) for x in bin]  # И добавить его в результирующий список
         return result
 
-    def permut(self, block, table):  # Permut the given block using the given table (so generic method)
+    def permut(self, block, table):  # Переставить заданный блок, используя заданную таблицу (универсальный метод)
         return [block[x - 1] for x in table]
 
-    def expand(self, block, table):  # Do the exact same thing than permut but for more clarity has been renamed
+    def expand(self, block, table):  # Выполнить ту же операцию, что и permut, но для большей ясности переименовано
         return [block[x - 1] for x in table]
 
-    def xor(self, t1, t2):  # Apply a xor and return the resulting list
+    def xor(self, t1, t2):  # Применить операцию XOR и вернуть результирующий список
         return [x ^ y for x, y in zip(t1, t2)]
 
-    def generatekeys(self):  # Algorithm that generates all the keys
+    def generatekeys(self):  # Алгоритм, генерирующий все ключи
         self.keys = []
         key = string_to_bit_array(self.password)
-        key = self.permut(key, CP_1)  # Apply the initial permut on the key
-        g, d = nsplit(key, 28)  # Split it in to (g->LEFT),(d->RIGHT)
-        for i in range(16):  # Apply the 16 rounds
-            g, d = self.shift(g, d, SHIFT[i])  # Apply the shift associated with the round (not always 1)
-            tmp = g + d  # Merge them
-            self.keys.append(self.permut(tmp, CP_2))  # Apply the permut to get the Ki
+        key = self.permut(key, CP_1)  # Применить начальную перестановку к ключу
+        g, d = nsplit(key, 28)  # Разделить его на (g->LEFT),(d->RIGHT)
+        for i in range(16):  # Применить 16 раундов
+            g, d = self.shift(g, d, SHIFT[i])  # Применить сдвиг, соответствующий раунду (не всегда 1)
+            tmp = g + d  # Объединить их
+            self.keys.append(self.permut(tmp, CP_2))  # Применить перестановку, чтобы получить Ki
 
-    def shift(self, g, d, n):  # Shift a list of the given value
+    def shift(self, g, d, n):  # Сдвинуть список на заданное значение
         return g[n:] + g[:n], d[n:] + d[:n]
 
-    def addPadding(self):  # Add padding to the datas using PKCS5 spec.
+    def addPadding(self):  # Добавить дополнение к данным в соответствии со спецификацией PKCS5
         pad_len = 8 - (len(self.text) % 8)
         self.text += pad_len * chr(pad_len)
 
-    def removePadding(self, data):  # Remove the padding of the plain text (it assume there is padding)
+    def removePadding(self, data):  # Убрать дополнение у исходного текста (предполагается, что дополнение есть)
         pad_len = ord(data[-1])
         return data[:-pad_len]
 
@@ -237,8 +253,14 @@ if __name__ == '__main__':
     key = "secret_k"
     text = "IlyaLook"
     d = Des()
-    r = d.encrypt(key, text)
-    r2 = d.decrypt(key, r)
-    print(f"Text: {text}, key {key}")
-    print("Ciphered: %r" % r)
-    print("Deciphered: ", r2)
+    print(f"Исходный текст: {text}, ключ: {key}")
+
+    # Шаг 1: Шифрование
+    print("\n--- Шифрование ---")
+    ciphered_text = d.encrypt(key, text)
+    print(f"Шифрованный текст: {ciphered_text}")
+
+    # Шаг 2: Дешифрование
+    print("\n--- Дешифрование ---")
+    deciphered_text = d.decrypt(key, ciphered_text)
+    print(f"Дешифрованный текст: {deciphered_text}")

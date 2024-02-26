@@ -48,7 +48,8 @@ class KDC:
         self.logger.log('New call ticket:')
         if client_id in self.available_clients:
             t = current_milli_time()
-            p = hours_to_milli(48)
+            # 0
+            p = hours_to_milli(25)
             key_tgs_c = KeyCreator.create_key()
             ticket = self.build_permission_ticket(client_id, self.tgs_id, t, p, key_tgs_c)
             self.logger.log('New call ticket: {}'.format(ticket))
@@ -302,3 +303,16 @@ class Application(tk.Tk):
 if __name__ == "__main__":
     app = Application()
     app.mainloop()
+
+
+# if __name__ == "__main__":
+#     app1 = Application()
+#     app1.title("Client 1")
+#     app1.client, app1.kdc = initialization_client(app1.logger)
+#
+#     app2 = Application()
+#     app2.title("Client 2")
+#     app2.client, app2.kdc = initialization_client(app2.logger)
+#
+#     app1.mainloop()
+#     app2.mainloop()
