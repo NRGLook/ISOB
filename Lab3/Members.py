@@ -60,6 +60,7 @@ class Member:
         answer = self._build_answer(package, self.__generate_payload())
         return answer
 
+
 class HackerMember(Member):
     def __init__(self, ip_address, tcp_port):
         self.ip_address = ip_address

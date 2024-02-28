@@ -65,6 +65,7 @@ class Connection:
         self.closed = True
         print('Connection is closed')
 
+
 class ConnectionHijack:
 
     def __init__(self):
